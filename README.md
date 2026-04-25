@@ -13,83 +13,23 @@
 
 Talent Scout AI automates the full recruiter workflow — from parsing a job description to producing a ranked, explainable shortlist — in one seamless pipeline:
 
-1. **JD Parsing** — paste any job description, the LLM extracts role, required skills, preferred skills, location, and minimum experience
-2. **Match Scoring** — every candidate in the pool is scored across 5 weighted factors with zero LLM calls (fast, cost-efficient)
-3. **Top-3 Selection** — only the best-matched candidates proceed to the engagement phase
-4. **Live Recruiter Chatbot** — the recruiter types real messages (up to 3 turns); the LLM replies as each candidate based on their actual profile
-5. **AI Suggestions** — 2 context-aware message suggestions per turn (one direct, one warm); click to auto-fill or type your own
-6. **Interest Scoring** — after 3 turns, the LLM analyses the full conversation across 4 dimensions and produces an interest score (0–100)
-7. **Combined Ranking** — final score = 60% Match + 40% Interest, giving recruiters an immediately actionable shortlist with full explainability
+1. JD Parsing — paste any job description, the LLM extracts role, required skills, preferred skills, location, and minimum experience
+2. Match Scoring — every candidate in the pool is scored across 5 weighted factors with zero LLM calls (fast, cost-efficient)
+3. Top-3 Selection — only the best-matched candidates proceed to the engagement phase
+4. Live Recriuter Chatbot — the recruiter types real messages (up to 3 turns); the LLM replies as each candidate based on their actual profile
+5. AI Suggestions — 2 context-aware message suggestions per turn (one direct, one warm); click to auto-fill or type your own
+6. Interest Scoring — after 3 turns, the LLM analyses the full conversation across 4 dimensions and produces an interest score (0–100)
+7. Combined Ranking — final score = 60% Match + 40% Interest, giving recruiters an immediately actionable shortlist with full explainability
 
 ---
 
 ## 🏗️ Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        TALENT SCOUT AI                          │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  ┌──────────────┐    ┌──────────────────────────────────────┐  │
-│  │  Job         │    │         LLM (NVIDIA NIM)             │  │
-│  │  Description │───▶│  meta/llama-3.3-70b-instruct         │  │
-│  │  (Text Input)│    │                                      │  │
-│  └──────────────┘    │  ┌─────────────────────────────────┐ │  │
-│                      │  │  Step 1: JD Parser              │ │  │
-│                      │  │  → role, skills, exp, location  │ │  │
-│                      │  └──────────────┬──────────────────┘ │  │
-│                      └─────────────────│────────────────────┘  │
-│                                        │                        │
-│  ┌─────────────────────────────────────▼──────────────────────┐ │
-│  │           Step 2: Rule-Based Match Scorer (0 LLM calls)    │ │
-│  │                                                            │ │
-│  │  Required Skills  ████████████████████  45 pts (power-curve│ │
-│  │  Preferred Skills ██████               15 pts (linear)    │ │
-│  │  Experience       ████████             20 pts (3-tier)    │ │
-│  │  Role Alignment   ██████               15 pts (keyword)   │ │
-│  │  Location         ██                    5 pts (exact/diff) │ │
-│  │                                                            │ │
-│  │  → Scores entire candidate pool → Top 3 selected          │ │
-│  └─────────────────────────────────────┬──────────────────────┘ │
-│                                        │                        │
-│  ┌─────────────────────────────────────▼──────────────────────┐ │
-│  │        Step 3: Live Recruiter Chatbot (Top 3 only)         │ │
-│  │                                                            │ │
-│  │  Turn 1 ──▶ [AI Suggestions A/B] ──▶ Recruiter types/picks│ │
-│  │  Turn 2 ──▶ [AI Suggestions A/B] ──▶ Recruiter types/picks│ │
-│  │  Turn 3 ──▶ [AI Suggestions A/B] ──▶ Recruiter types/picks│ │
-│  │                │                                           │ │
-│  │                ▼                                           │ │
-│  │         LLM replies as candidate                          │ │
-│  │         (profile-aware, randomised, realistic)            │ │
-│  └─────────────────────────────────────┬──────────────────────┘ │
-│                                        │                        │
-│  ┌─────────────────────────────────────▼──────────────────────┐ │
-│  │        Step 4: Interest Scorer (1 LLM call / candidate)    │ │
-│  │                                                            │ │
-│  │  Openness        0–25  (actively looking?)                │ │
-│  │  Role Alignment  0–25  (excited about this role?)         │ │
-│  │  Location Fit    0–25  (comfortable with location?)       │ │
-│  │  Availability    0–25  (can join soon?)                   │ │
-│  └─────────────────────────────────────┬──────────────────────┘ │
-│                                        │                        │
-│  ┌─────────────────────────────────────▼──────────────────────┐ │
-│  │        Step 5: Combined Ranking & Export                   │ │
-│  │                                                            │ │
-│  │  Final Score = Match × 0.6  +  Interest × 0.4             │ │
-│  │  → Ranked shortlist table with progress bars              │ │
-│  │  → Per-candidate breakdown (match + interest + chat)      │ │
-│  │  → CSV export                                             │ │
-│  └────────────────────────────────────────────────────────────┘ │
-│                                                                 │
-│  ┌──────────────────────┐    ┌──────────────────────────────┐  │
-│  │  SQLite DB           │    │  NVIDIA NIM API              │  │
-│  │  talent.db           │    │  Up to 3 API keys            │  │
-│  │  Candidate pool CRUD │    │  Key rotation on 429         │  │
-│  │  Seeded with 7 devs  │    │  2s rate-limit enforcement   │  │
-│  └──────────────────────┘    └──────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────┘
-```
+<p align="center">
+  <img src="architecture.png" alt="Talent Scout AI Architecture" width="600"/>
+</p>
+
+<p align="center"><em>End-to-end pipeline from JD input to ranked shortlist</em></p>
 
 ---
 
