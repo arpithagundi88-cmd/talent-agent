@@ -7,7 +7,7 @@ Run with:
 
 Requires NVIDIA_API_KEY_1/2/3 in our .env file (supports up to 3 keys).
 
-Pipeline:
+Follows below steps:
     1. Parse JD              → structured fields via LLM
     2. Match scoring         → weighted 5-factor score (0–100) — I have used ZERO LLM calls here.
     3. Top-3 filter          → only top 3 by match score proceed to LLM
@@ -422,7 +422,7 @@ def calculate_match_score(parsed_jd: dict, row: pd.Series) -> dict:
         "loc_pts":           loc_pts,
         "matched_required":  matched_req,
         "matched_preferred": matched_pref,
-        "missing_required":  [s for s in req if s not in matched_req] if req else [],
+        "missing_required":  [s for s in my_required_skills if s not in matched_req] if my_required_skills else [],
         "exp_tier":          exp_tier,
         "role_overlap_pct":  round(role_overlap * 100, 1),
     }
@@ -430,6 +430,7 @@ def calculate_match_score(parsed_jd: dict, row: pd.Series) -> dict:
 
 # ─────────────────────────────────────────────────────────────────────────────
 # LIVE CHAT — Recruiter message suggestions (2 per turn, context-aware)
+# I m using just two suggestions, just to limit API credit usage!
 # ─────────────────────────────────────────────────────────────────────────────
 def generate_recruiter_suggestions(
     parsed_jd: dict,
@@ -1110,7 +1111,7 @@ else:
                 st.success(
                     f"**Combined Final Score: {final} / 100** "
                     f"(Match {match_data['match_score']} × {match_weight} + "
-                    f"Interest {interest_data['interest_score']} × {interest_weight})"
+                    f"Interest {my_interest_data['interest_score']} × {interest_weight})"
                 )
 
     # ────────────────────────────────────────────────────────────────────────
