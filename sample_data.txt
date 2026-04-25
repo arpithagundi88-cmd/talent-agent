@@ -1,0 +1,256 @@
+SAMPLE CANDIDATE POOL — Talent Scout AI
+========================================
+
+These are the 7 candidates seeded into the database by default.
+Delete talent.db and restart the app to reset to this pool.
+
+────────────────────────────────────────
+CANDIDATE 1
+────────────────────────────────────────
+Name         : Rahul
+Current Role : Backend Developer
+Skills       : Python, SQL, FastAPI, AWS
+Experience   : 4 years
+Location     : Bangalore
+
+────────────────────────────────────────
+CANDIDATE 2
+────────────────────────────────────────
+Name         : Priya
+Current Role : Software Engineer
+Skills       : Python, Django, SQL, Azure
+Experience   : 5 years
+Location     : Hyderabad
+
+────────────────────────────────────────
+CANDIDATE 3
+────────────────────────────────────────
+Name         : Sneha
+Current Role : Python Developer
+Skills       : Python, FastAPI, AWS, Docker
+Experience   : 3 years
+Location     : Chennai
+
+────────────────────────────────────────
+CANDIDATE 4
+────────────────────────────────────────
+Name         : Kiran
+Current Role : Full Stack Developer
+Skills       : React, Node.js, MongoDB
+Experience   : 4 years
+Location     : Bangalore
+
+────────────────────────────────────────
+CANDIDATE 5
+────────────────────────────────────────
+Name         : Neha
+Current Role : Data Analyst
+Skills       : Python, SQL, Machine Learning
+Experience   : 2 years
+Location     : Delhi
+
+────────────────────────────────────────
+CANDIDATE 6
+────────────────────────────────────────
+Name         : Arjun
+Current Role : DevOps Engineer
+Skills       : Python, AWS, Docker, Kubernetes
+Experience   : 5 years
+Location     : Mumbai
+
+────────────────────────────────────────
+CANDIDATE 7
+────────────────────────────────────────
+Name         : Meera
+Current Role : Backend Engineer
+Skills       : Python, FastAPI, PostgreSQL
+Experience   : 4 years
+Location     : Bangalore
+
+========================================
+SAMPLE JOB DESCRIPTION
+========================================
+
+We are hiring a Senior Python Backend Developer based in Bangalore.
+
+The ideal candidate has 4+ years of hands-on experience building
+production-grade REST APIs using FastAPI and deploying on AWS
+(Lambda, S3, RDS, EC2).
+
+Required Skills  : Python, FastAPI, AWS, SQL
+Preferred Skills : Docker, PostgreSQL, Redis
+Experience       : 4+ years
+Location         : Bangalore
+
+========================================
+EXPECTED MATCH SCORING RESULT
+========================================
+
+Rank  Name   Match   Req Skills  Exp Tier  Location
+----  -----  ------  ----------  --------  ---------
+1     Rahul  80.0    4/4         full      Bangalore
+2     Meera  71.3    3/4         full      Bangalore
+3     Sneha  56.8    3/4         full      Chennai
+4     Arjun  53.8    2/4         full      Mumbai
+5     Priya  48.8    2/4         full      Hyderabad
+6     Kiran  18.0    0/4         full      Bangalore
+7     Neha   25.0    2/4         miss      Delhi
+
+Top 3 selected for live chat: Rahul, Meera, Sneha
+
+========================================
+SAMPLE CONVERSATION — RAHUL (Strong Match)
+========================================
+
+Turn 1
+------
+Recruiter : Hi Rahul, I came across your profile and your FastAPI and
+            AWS experience stood out immediately. We have a Senior
+            Backend Developer role in Bangalore — would you be open
+            to a quick chat?
+
+Rahul     : Thanks for reaching out! I'm definitely open to hearing
+            more. I've been working with FastAPI and AWS for the past
+            couple of years and I'm quite happy in that space. What
+            kind of product are you building?
+
+Turn 2
+------
+Recruiter : It's a fintech startup — payments infrastructure, high
+            throughput APIs, heavy AWS usage. Given your 4 years of
+            backend experience, I think you'd own a lot here. What
+            does your current stack look like day to day?
+
+Rahul     : That sounds really interesting — payments infra is
+            exactly the kind of high-stakes backend work I enjoy.
+            Right now I'm using FastAPI with RDS and S3, deploying
+            via Lambda. Honestly this role sounds like a natural next
+            step. What's the team size?
+
+Turn 3
+------
+Recruiter : Small but growing — around 12 engineers, lots of
+            ownership. What's your current notice period and are you
+            actively exploring right now?
+
+Rahul     : I have a 30-day notice period and yes, I've been
+            passively exploring for a couple of months. This role
+            checks most of my boxes — I'd definitely want to take
+            this conversation forward.
+
+Interest Score : 87 / 100
+  Openness       : 22 / 25
+  Role Alignment : 23 / 25
+  Location Fit   : 24 / 25
+  Availability   : 18 / 25
+Key Quote  : "This role checks most of my boxes — I'd definitely
+              want to take this conversation forward."
+Summary    : Rahul is actively exploring, technically well-aligned,
+             and showed consistent enthusiasm throughout — strong
+             candidate to prioritise.
+
+========================================
+SAMPLE CONVERSATION — MEERA (Good Match)
+========================================
+
+Turn 1
+------
+Recruiter : Hi Meera, your FastAPI and PostgreSQL background is
+            exactly what we're looking for. We have a Backend
+            Engineer role in Bangalore — are you open to exploring?
+
+Meera     : Hi, thanks for reaching out! I'm not actively job
+            hunting right now but I'm open to the right opportunity.
+            What kind of company is this?
+
+Turn 2
+------
+Recruiter : Series B fintech — solid engineering culture, good
+            comp. The stack is Python, FastAPI, PostgreSQL and AWS.
+            Looks like a strong overlap with your current work.
+            What are you working on these days?
+
+Meera     : That stack is almost identical to what I use daily —
+            that's a good sign. I've been building internal APIs
+            and handling database optimisation mostly. AWS is the
+            one gap for me, I use it lightly. Would that be a
+            blocker?
+
+Turn 3
+------
+Recruiter : Not a blocker at all — there's a learning curve but
+            the team supports it. What would make you seriously
+            consider a move right now?
+
+Meera     : Honestly, a meaningful pay bump and more ownership.
+            My current role has become a bit routine. If those
+            are on the table I'd be interested in moving forward.
+
+Interest Score : 72 / 100
+  Openness       : 16 / 25
+  Role Alignment : 22 / 25
+  Location Fit   : 22 / 25
+  Availability   : 12 / 25
+Key Quote  : "If those are on the table I'd be interested in
+              moving forward."
+Summary    : Meera is a strong technical fit and warming up —
+             not actively looking but motivatable with the right offer.
+
+========================================
+SAMPLE CONVERSATION — ARJUN (Weak Match)
+========================================
+
+Turn 1
+------
+Recruiter : Hi Arjun, your AWS, Docker and Kubernetes experience
+            is impressive. We have a Python Backend Developer role
+            in Bangalore — would that interest you?
+
+Arjun     : Thanks for the message! I'm primarily a DevOps engineer
+            so a pure backend role would be a bit of a shift for me.
+            How much of this is infrastructure vs application code?
+
+Turn 2
+------
+Recruiter : Good question — it's mostly application code, FastAPI
+            and Python, but the team deeply values cloud-native
+            thinking. Your infra background could actually be a
+            real advantage. Have you done backend Python work
+            alongside DevOps?
+
+Arjun     : I do write Python for automation and tooling but I
+            wouldn't call myself a backend developer. I'm also
+            based in Mumbai — is this role remote-friendly or
+            strictly Bangalore?
+
+Turn 3
+------
+Recruiter : It's hybrid — 3 days in office in Bangalore. Would
+            relocation be something you'd consider?
+
+Arjun     : Relocation is a big ask honestly, I have family here.
+            And I'm not sure the backend tilt is the right move
+            for my career right now. I appreciate you thinking
+            of me though.
+
+Interest Score : 32 / 100
+  Openness       : 10 / 25
+  Role Alignment : 8  / 25
+  Location Fit   : 6  / 25
+  Availability   : 8  / 25
+Key Quote  : "I'm not sure the backend tilt is the right move
+              for my career right now."
+Summary    : Arjun is a poor fit — role mismatch, location friction,
+             and no real enthusiasm. Not recommended for next steps.
+
+========================================
+FINAL RANKED SHORTLIST
+========================================
+
+Rank  Name   Match  Interest  Final   Verdict
+----  -----  -----  --------  ------  -------------------------
+1     Rahul  80.0   87        82.8    ✅ Highly Interested
+2     Meera  71.3   72        71.6    ✅ Interested
+3     Arjun  53.8   32        44.1    🟠 Low Interest
+
+Formula: Final = (Match × 0.6) + (Interest × 0.4)

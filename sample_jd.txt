@@ -1,0 +1,20 @@
+We are hiring a Python Backend Developer with 3+ years of experience.
+
+Required Skills:
+- Python
+- FastAPI
+- SQL
+- AWS
+
+Preferred Skills:
+- Docker
+- REST APIs
+- PostgreSQL
+
+Location: Bangalore
+
+Responsibilities:
+- Build scalable backend APIs
+- Work with cloud infrastructure
+- Optimize database performance
+- Collaborate with frontend and product teams
