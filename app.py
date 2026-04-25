@@ -5,11 +5,11 @@ Run with:
     pip install streamlit requests python-dotenv pandas
     streamlit run talent_scout.py
 
-Requires NVIDIA_API_KEY in your .env file (supports up to 3 keys).
+Requires NVIDIA_API_KEY_1/2/3 in our .env file (supports up to 3 keys).
 
 Pipeline:
     1. Parse JD              → structured fields via LLM
-    2. Match scoring         → weighted 5-factor score (0–100) — ZERO LLM calls here.
+    2. Match scoring         → weighted 5-factor score (0–100) — I have used ZERO LLM calls here.
     3. Top-3 filter          → only top 3 by match score proceed to LLM
     4. LIVE chatbot          → recruiter sends real messages, LLM replies as candidate (max 3 turns)
     5. Interest scoring      → 4-factor score from full conversation (0–100)
@@ -126,6 +126,7 @@ st.markdown("""
 
 # ─────────────────────────────────────────────────────────────────────────────
 # NVIDIA API — Key pool + rotation + retry
+# I have used 3 API keys for safety purpose , since only 40rpm is supported by NVIDIA keys.
 # ─────────────────────────────────────────────────────────────────────────────
 _ALL_KEYS = [
     k for k in [
@@ -136,7 +137,7 @@ _ALL_KEYS = [
     if k and k.strip()
 ]
 
-_legacy = os.getenv("NVIDIA_API_KEY")
+_legacy = os.getenv("NVIDIA_API_KEY_1")
 if _legacy and _legacy.strip() and _legacy not in _ALL_KEYS:
     _ALL_KEYS.append(_legacy)
 
@@ -259,7 +260,8 @@ def call_nvidia(prompt: str, max_tokens: int = 500) -> str:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Database
+# Database- 8 seed candidate samples are added to the system for demo purpose.
+# multiple other people can be added using add_candidate button.
 # ─────────────────────────────────────────────────────────────────────────────
 def init_db():
     conn = sqlite3.connect("talent.db")
@@ -319,7 +321,7 @@ def delete_candidate(candidate_id: int):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# STEP 1 — JD Parser
+# STEP 1 — JD (job description)    Parser
 # ─────────────────────────────────────────────────────────────────────────────
 def parse_jd(jd: str) -> dict:
     prompt = f"""
