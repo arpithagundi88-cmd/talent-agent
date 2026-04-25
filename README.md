@@ -114,24 +114,6 @@ streamlit run talent_scout.py
 
 ---
 
-## 📂 Project Structure
-
-```
-talent-scout-ai/
-├── talent_scout.py      # Main app — entire pipeline in one file
-├── .env                 # Your API keys (not committed)
-├── .env.example         # Template for .env
-├── .gitignore
-├── requirements.txt
-├── README.md
-├── ARCHITECTURE.md      # Detailed architecture + scoring docs
-└── sample_output/
-    ├── sample_jd.txt    # Example job description
-    └── sample_output.csv  # Example ranked shortlist export
-```
-
----
-
 ## 🧪 Sample Input
 
 **Job Description:**
@@ -146,16 +128,6 @@ services end-to-end in a fast-paced startup environment.
 
 ---
 
-## 💡 Key Design Decisions
-
-- **Zero LLM calls for match scoring** — the entire candidate pool is scored with pure Python logic, making it fast and cost-efficient regardless of pool size
-- **Top-3 filter** — LLM engagement only happens for the top 3 candidates, keeping API usage within free-tier limits
-- **Live recruiter chatbot** — unlike static simulation, the recruiter types real messages, making the interest assessment more authentic
-- **AI suggestions with auto-fill** — reduces recruiter effort without removing control; suggestions are context-aware and turn-specific
-- **Key rotation** — up to 3 NVIDIA keys rotate automatically on 429 errors with Retry-After header support
-- **Adjustable weights** — match/interest weight ratio is a runtime slider, not hardcoded
-
----
 
 ## 🔑 API Rate Limit Handling
 
