@@ -5,7 +5,7 @@
 ---
 
 ## 🚀 Live Demo
-> _Add your deployed URL here after hosting (e.g. Streamlit Cloud)_
+> [https://talent-agent-ai-arpithags.streamlit.app/]
 
 ---
 
