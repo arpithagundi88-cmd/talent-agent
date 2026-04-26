@@ -427,7 +427,7 @@ def calculate_match_score(parsed_jd: dict, row: pd.Series) -> dict:
         "loc_pts":           loc_pts,
         "matched_required":  matched_req,
         "matched_preferred": matched_pref,
-        "missing_required":  [s for s in req if s not in matched_req] if req else [],
+        "missing_required":  [s for s in myrequiredskills if s not in matched_req] if myrequiredskills else [],
         "exp_tier":          exp_tier,
         "role_overlap_pct":  round(role_overlap * 100, 1),
     }
