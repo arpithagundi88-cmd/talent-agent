@@ -371,12 +371,17 @@ def calculate_match_score(parsed_jd: dict, row: pd.Series) -> dict:
     weights = {"required_skills": 45, "preferred_skills": 15,
                "experience": 20, "role": 15, "location": 5}
     score = 0
-    candidate_skills = row["skills"].lower()
+    # Exact skill token matching
+    candidate_set = {
+        x.strip().lower()
+        for x in str(row["skills"]).split(",")
+        if x.strip()
+    }
 
     req = parsed_jd["required_skills"]
     matched_req, req_pts = [], 0
     if req:
-        matched_req = [s for s in req if s.lower() in candidate_skills]
+        matched_req = [s for s in req if s.lower() in candidate_set]
         ratio = len(matched_req) / len(req)
         req_pts = round((ratio ** 0.75) * weights["required_skills"], 2)
         score += req_pts
