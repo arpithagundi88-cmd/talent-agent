@@ -5,14 +5,14 @@ Run with:
     pip install streamlit requests python-dotenv pandas
     streamlit run talent_scout.py
 
-Requires NVIDIA_API_KEY in your .env file (supports up to 3 keys).
+Requirs NVIDIA_API_KEY in your .env file (supports up to 3 keys).
 
 Pipeline:
     1. Parse JD              → structured fields via LLM
-    2. Match scoring         → weighted 5-factor score (0–100) — I have used ZERO LLM calls here.
+    2. Match scoring         → weighted 5-factor score (0 to 100) — I have used ZERO LLM calls here.
     3. Top-3 filter          → only top 3 by match score proceed to LLM
     4. LIVE chatbot          → recruiter sends real messages, LLM replies as candidate (max 3 turns)
-    5. Interest scoring      → 4-factor score from full conversation (0–100)
+    5. Interest scoring      → 4-factor score from full conversation (0 to 100)
     6. Combined ranking      → 60% match + 40% interest, sorted shortlist
 """
 
@@ -322,7 +322,7 @@ def delete_candidate(candidate_id: int):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# STEP 1 — JD Parser
+# STEP 1 — sample job description Parser
 # ─────────────────────────────────────────────────────────────────────────────
 def parse_jd(jd: str) -> dict:
     prompt = f"""
@@ -366,63 +366,6 @@ Job Description:
 # ─────────────────────────────────────────────────────────────────────────────
 # STEP 2 — Match Score Engine (zero LLM calls)
 # ─────────────────────────────────────────────────────────────────────────────
-def parse_resume(pdf_bytes: bytes) -> dict:
-    """
-    Extract structured candidate info from a PDF resume using LLM vision.
-    Converts PDF to base64 and sends as document to NVIDIA NIM.
-    Returns dict with name, skills, experience, location, current_role.
-    """
-    import base64
-    b64 = base64.standard_b64encode(pdf_bytes).decode("utf-8")
-
-    prompt = f"""You are an expert HR assistant. Extract structured candidate information from this resume PDF.
-Return ONLY valid JSON — no markdown, no explanation:
-
-{{
-  "name": "",
-  "current_role": "",
-  "skills": "",
-  "experience": 0,
-  "location": ""
-}}
-
-Rules:
-- name: full name of the candidate
-- current_role: their most recent job title
-- skills: comma-separated list of technical skills (programming languages, frameworks, tools, cloud platforms)
-- experience: total years of professional experience as integer
-- location: current city they are based in
-- If any field is missing or unclear, use empty string or 0
-
-Resume (base64 PDF):
-[PDF content provided as attachment]
-
-Extract from the resume text embedded in the following base64:
-{b64[:8000]}
-"""
-    try:
-        text = call_nvidia(prompt, max_tokens=400)
-        text = text.replace("```json", "").replace("```", "").strip()
-        # Handle cases where LLM wraps in extra text
-        start = text.find("{")
-        end   = text.rfind("}") + 1
-        if start != -1 and end > start:
-            text = text[start:end]
-        data = json.loads(text)
-        return {
-            "name":         str(data.get("name", "")).strip(),
-            "current_role": str(data.get("current_role", "")).strip(),
-            "skills":       str(data.get("skills", "")).strip(),
-            "experience":   int(data.get("experience", 0)),
-            "location":     str(data.get("location", "")).strip(),
-        }
-    except Exception as e:
-        return {
-            "name": "", "current_role": "", "skills": "",
-            "experience": 0, "location": "",
-            "_error": str(e)
-        }
-
 
 def calculate_match_score(parsed_jd: dict, row: pd.Series) -> dict:
     weights = {"required_skills": 45, "preferred_skills": 15,
