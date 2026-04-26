@@ -90,7 +90,7 @@ Backend Developer ↔ Senior Backend Engineer
 
 After scoring everyone, top 3 candidates move forward.
 
-This keeps the app fast and reduces API usage.
+This keeps our app fast and reduces API usage.
 
 ---
 

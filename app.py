@@ -5,9 +5,9 @@ Run with:
     pip install streamlit requests python-dotenv pandas
     streamlit run talent_scout.py
 
-Requires NVIDIA_API_KEY_1/2/3 in our .env file (supports up to 3 keys).
+Requires NVIDIA_API_KEY in your .env file (supports up to 3 keys).
 
-Follows below steps:
+Pipeline:
     1. Parse JD              → structured fields via LLM
     2. Match scoring         → weighted 5-factor score (0–100) — I have used ZERO LLM calls here.
     3. Top-3 filter          → only top 3 by match score proceed to LLM
@@ -126,7 +126,6 @@ st.markdown("""
 
 # ─────────────────────────────────────────────────────────────────────────────
 # NVIDIA API — Key pool + rotation + retry
-# I have used 3 API keys for safety purpose , since only 40rpm is supported by single NVIDIA key.
 # ─────────────────────────────────────────────────────────────────────────────
 _ALL_KEYS = [
     k for k in [
@@ -137,11 +136,12 @@ _ALL_KEYS = [
     if k and k.strip()
 ]
 
-_legacy = os.getenv("NVIDIA_API_KEY_1")
+_legacy = os.getenv("NVIDIA_API_KEY")
 if _legacy and _legacy.strip() and _legacy not in _ALL_KEYS:
     _ALL_KEYS.append(_legacy)
 
 _key_state = {"index": 0}
+# I have used 3 API keys for safety purpose , since only 40rpm is supported by single NVIDIA key.
 _last_call_time: dict[int, float] = {}
 MIN_CALL_INTERVAL = 2.0
 MAX_RETRIES = 3
@@ -260,9 +260,10 @@ def call_nvidia(prompt: str, max_tokens: int = 500) -> str:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Database
+# ─────────────────────────────────────────────────────────────────────────────
 # Database- 8 seed candidate samples are added to the system for demo purpose.
 # multiple other people can be added using add candidate facility.
-# ─────────────────────────────────────────────────────────────────────────────
 def init_db():
     conn = sqlite3.connect("talent.db")
     c = conn.cursor()
@@ -365,34 +366,92 @@ Job Description:
 # ─────────────────────────────────────────────────────────────────────────────
 # STEP 2 — Match Score Engine (zero LLM calls)
 # ─────────────────────────────────────────────────────────────────────────────
+def parse_resume(pdf_bytes: bytes) -> dict:
+    """
+    Extract structured candidate info from a PDF resume using LLM vision.
+    Converts PDF to base64 and sends as document to NVIDIA NIM.
+    Returns dict with name, skills, experience, location, current_role.
+    """
+    import base64
+    b64 = base64.standard_b64encode(pdf_bytes).decode("utf-8")
+
+    prompt = f"""You are an expert HR assistant. Extract structured candidate information from this resume PDF.
+Return ONLY valid JSON — no markdown, no explanation:
+
+{{
+  "name": "",
+  "current_role": "",
+  "skills": "",
+  "experience": 0,
+  "location": ""
+}}
+
+Rules:
+- name: full name of the candidate
+- current_role: their most recent job title
+- skills: comma-separated list of technical skills (programming languages, frameworks, tools, cloud platforms)
+- experience: total years of professional experience as integer
+- location: current city they are based in
+- If any field is missing or unclear, use empty string or 0
+
+Resume (base64 PDF):
+[PDF content provided as attachment]
+
+Extract from the resume text embedded in the following base64:
+{b64[:8000]}
+"""
+    try:
+        text = call_nvidia(prompt, max_tokens=400)
+        text = text.replace("```json", "").replace("```", "").strip()
+        # Handle cases where LLM wraps in extra text
+        start = text.find("{")
+        end   = text.rfind("}") + 1
+        if start != -1 and end > start:
+            text = text[start:end]
+        data = json.loads(text)
+        return {
+            "name":         str(data.get("name", "")).strip(),
+            "current_role": str(data.get("current_role", "")).strip(),
+            "skills":       str(data.get("skills", "")).strip(),
+            "experience":   int(data.get("experience", 0)),
+            "location":     str(data.get("location", "")).strip(),
+        }
+    except Exception as e:
+        return {
+            "name": "", "current_role": "", "skills": "",
+            "experience": 0, "location": "",
+            "_error": str(e)
+        }
+
+
 def calculate_match_score(parsed_jd: dict, row: pd.Series) -> dict:
     weights = {"required_skills": 45, "preferred_skills": 15,
                "experience": 20, "role": 15, "location": 5}
     score = 0
     candidate_skills = row["skills"].lower()
 
-    my_required_skills = parsed_jd["required_skills"]
+    req = parsed_jd["required_skills"]
     matched_req, req_pts = [], 0
-    if my_required_skills:
-        matched_req = [s for s in my_required_skills if s.lower() in candidate_skills]
-        ratio = len(matched_req) / len(my_required_skills)
+    if req:
+        matched_req = [s for s in req if s.lower() in candidate_skills]
+        ratio = len(matched_req) / len(req)
         req_pts = round((ratio ** 0.75) * weights["required_skills"], 2)
         score += req_pts
 
-    my_preferred_skills = parsed_jd["preferred_skills"]
+    pref = parsed_jd["preferred_skills"]
     matched_pref, pref_pts = [], 0
-    if my_preferred_skills:
-        matched_pref = [s for s in my_preferred_skills if s.lower() in candidate_skills]
-        pref_pts = round((len(matched_pref) / len(my_preferred_skills)) * weights["preferred_skills"], 2)
+    if pref:
+        matched_pref = [s for s in pref if s.lower() in candidate_skills]
+        pref_pts = round((len(matched_pref) / len(pref)) * weights["preferred_skills"], 2)
         score += pref_pts
 
     req_exp = parsed_jd["experience"]
-    my_cand_exp = int(row.get("experience", 0))
+    cand_exp = int(row.get("experience", 0))
     exp_tier, exp_pts = "miss", 0
     if req_exp > 0:
-        if my_cand_exp >= req_exp:
+        if cand_exp >= req_exp:
             exp_pts = weights["experience"]; exp_tier = "full"
-        elif my_cand_exp >= req_exp - 1:
+        elif cand_exp >= req_exp - 1:
             exp_pts = round(weights["experience"] * 0.7, 2); exp_tier = "partial"
     score += exp_pts
 
@@ -407,9 +466,9 @@ def calculate_match_score(parsed_jd: dict, row: pd.Series) -> dict:
         score += role_pts
 
     target_loc = parsed_jd["location"].lower().strip()
-    my_cand_loc = row.get("location", "").lower().strip()
+    cand_loc = row.get("location", "").lower().strip()
     if not target_loc:           loc_pts = 3
-    elif target_loc == my_cand_loc: loc_pts = weights["location"]
+    elif target_loc == cand_loc: loc_pts = weights["location"]
     else:                        loc_pts = 2
     score += loc_pts
 
@@ -422,7 +481,7 @@ def calculate_match_score(parsed_jd: dict, row: pd.Series) -> dict:
         "loc_pts":           loc_pts,
         "matched_required":  matched_req,
         "matched_preferred": matched_pref,
-        "missing_required":  [s for s in my_required_skills if s not in matched_req] if my_required_skills else [],
+        "missing_required":  [s for s in req if s not in matched_req] if req else [],
         "exp_tier":          exp_tier,
         "role_overlap_pct":  round(role_overlap * 100, 1),
     }
@@ -524,14 +583,24 @@ def generate_candidate_reply_live(
     conversation_history: list,
     recruiter_message: str
 ) -> str:
-    """
-    Generate a realistic, non-deterministic candidate reply to the recruiter's message.
-    Uses the full conversation history for context.
-    I have set the temperature to 0.85 since we need different reply each run even for identical inputs.
-    """
+    # I have set the temperature to 0.85 since we need different reply each run even for identical inputs.
     history_text = ""
     for turn in conversation_history:
         history_text += f"Recruiter: {turn['recruiter']}\n{candidate_row['name']}: {turn['candidate']}\n\n"
+
+    # Calculate fit signals to guide LLM realism
+    req_skills   = parsed_jd.get("required_skills", [])
+    cand_skills  = str(candidate_row.get("skills", "")).lower()
+    matched      = sum(1 for s in req_skills if s.lower() in cand_skills)
+    skill_ratio  = matched / len(req_skills) if req_skills else 0
+    loc_match    = parsed_jd.get("location","").lower().strip() == str(candidate_row.get("location","")).lower().strip()
+
+    if skill_ratio >= 0.75 and loc_match:
+        fit_instruction = "This role is a STRONG fit for you. Show genuine enthusiasm, ask smart follow-up questions, and signal you are interested in moving forward."
+    elif skill_ratio >= 0.5:
+        fit_instruction = "This role is a PARTIAL fit. Show moderate interest but raise a natural concern or gap — maybe a skill you don't have, or ask for more details before committing."
+    else:
+        fit_instruction = "This role is a WEAK fit for you — wrong tech stack, wrong domain, or location mismatch. Be politely hesitant. Do not fake enthusiasm. It is okay to say this may not be the right move."
 
     prompt = f"""You are roleplaying as {candidate_row['name']}, a {candidate_row['current_role']} with {candidate_row['experience']} years of experience in the tech industry.
 
@@ -553,15 +622,14 @@ Previous conversation:
 
 Recruiter just said: "{recruiter_message}"
 
-Instructions for your reply:
-- Reply naturally and authentically as {candidate_row['name']} in 2-4 sentences
-- Be REALISTIC: if this role closely matches your skills and experience, show genuine interest and enthusiasm
-- If the role is a weak fit (e.g. wrong tech stack, location mismatch), politely show hesitation but remain professional
-- Vary your personality — be warm but not overly enthusiastic, ask a natural follow-up question if relevant
+Fit guidance: {fit_instruction}
+
+Reply rules:
+- 2-3 sentences only — keep it natural and concise
+- Do NOT start with "Hi" or "Hello" after the first message
 - Do NOT copy phrases from previous turns
-- Do NOT start with greetings like "Hi" or "Hello" after the first message
-- Sound like a real professional, not a script
-- Your answer should feel spontaneous and human"""
+- Sound like a real person — not a script, not overly polished
+- If hesitant, say so clearly but professionally"""
 
     return call_nvidia(prompt, max_tokens=200)
 
@@ -574,24 +642,64 @@ def score_interest(parsed_jd: dict, row: pd.Series, conversation: list) -> dict:
     for i, turn in enumerate(conversation, 1):
         full_chat += f"[Turn {i}]\nRecruiter: {turn['recruiter']}\n{row['name']}: {turn['candidate']}\n\n"
 
-    prompt = f"""You are an expert recruiter evaluating candidate interest from a real conversation.
-Candidate: {row['name']} | {row['current_role']} | {row['experience']} yrs | {row['location']}
+    # Skills overlap for context
+    req_skills    = parsed_jd.get("required_skills", [])
+    cand_skills   = str(row.get("skills", "")).lower()
+    matched_count = sum(1 for s in req_skills if s.lower() in cand_skills)
+    skill_context = f"{matched_count}/{len(req_skills)} required skills matched" if req_skills else "skills unknown"
+
+    loc_match = parsed_jd.get("location", "").lower().strip() == str(row.get("location", "")).lower().strip()
+    loc_context = "same city as job" if loc_match else "different city from job location"
+
+    prompt = f"""You are a strict, experienced recruiter analyst evaluating GENUINE candidate interest from a conversation.
+Be CRITICAL and REALISTIC — most candidates are not highly interested. Default to lower scores unless there is clear evidence.
+
+Candidate: {row['name']} | {row['current_role']} | {row['experience']} yrs exp | {row['location']}
 Job: {parsed_jd.get('role')} in {parsed_jd.get('location')}
+Skill overlap: {skill_context}
+Location: {loc_context}
 
 Full conversation:
 {full_chat}
 
-Score genuine interest across 4 dimensions (each 0–25):
-1. openness       — how actively are they looking / open to opportunities?
-2. role_alignment — does this specific role excite them?
-3. location_fit   — comfortable with the location/setup?
-4. availability   — how soon could they realistically join?
+Score each dimension 0–25 using STRICT rubric below. Do NOT give high scores without explicit evidence.
+
+DIMENSION 1 — OPENNESS (are they actively looking?)
+  20–25: Explicitly says they are actively job hunting or ready to move now
+  13–19: Open to the right opportunity but not urgently looking
+  6–12:  Vague or noncommittal — "maybe", "depends", "not really looking"
+  0–5:   Clearly not looking, happy in current role, or deflecting
+
+DIMENSION 2 — ROLE ALIGNMENT (does this specific role excite them?)
+  20–25: Asks specific questions about the role, mentions matching skills, expresses clear enthusiasm
+  13–19: Politely interested, sees some overlap but no strong excitement shown
+  6–12:  Lukewarm — role is a partial fit or they have concerns about the tech/scope
+  0–5:   Role is a mismatch (wrong stack, wrong level, wrong domain) or they said so explicitly
+
+DIMENSION 3 — LOCATION FIT (comfortable with the location?)
+  20–25: Lives in same city or explicitly fine with relocation/setup
+  13–19: Minor concern mentioned but workable
+  6–12:  Location is different city and they raised it as a concern
+  0–5:   Explicitly said relocation is not possible or a dealbreaker
+
+DIMENSION 4 — AVAILABILITY (how soon can they join?)
+  20–25: Notice period ≤ 30 days or said they can join soon
+  13–19: 30–60 day notice period or vague but positive
+  6–12:  60–90 days or non-committal about timing
+  0–5:   Long notice period, said they cannot move soon, or avoided the topic entirely
+
+IMPORTANT RULES:
+- A polite or professional reply does NOT mean high interest — read between the lines
+- Hesitation, vague answers, or topic-avoidance = low score on that dimension
+- Only give 20+ if the candidate EXPLICITLY showed that signal in their words
+- Location mismatch should heavily penalise dimension 3
+- Skill mismatch should lower dimension 2
 
 Also extract:
-- key_quote: most revealing sentence from the candidate (max 20 words, exact words)
-- summary: one sentence overall interest assessment
+- key_quote: the single most revealing sentence from the candidate (max 20 words, their exact words)
+- summary: one honest sentence — what does this conversation tell a recruiter about this candidate?
 
-Return ONLY valid JSON, no markdown:
+Return ONLY valid JSON, no markdown, no explanation:
 {{
   "openness": 0, "role_alignment": 0, "location_fit": 0, "availability": 0,
   "key_quote": "", "summary": ""
@@ -966,7 +1074,7 @@ else:
                         unsafe_allow_html=True
                     )
 
-                    # Just AI Suggestions 
+                    # ── AI Suggestions ────────────────────────────────────
                     sugg_key    = get_suggestion_key(name, turns_used + 1)
                     prefill_key = f"prefill_{name}_{turns_used}"
 
@@ -1061,8 +1169,8 @@ else:
                             })
 
                             # If this was the last turn, auto-score
-                            letsc_new_turns = len(st.session_state[chat_key])
-                            if letsc_new_turns >= MAX_RECRUITER_TURNS:
+                            new_turns_used = len(st.session_state[chat_key])
+                            if new_turns_used >= MAX_RECRUITER_TURNS:
                                 with st.spinner(f"📊 Analysing {name}'s interest level..."):
                                     try:
                                         interest_data = score_interest(
@@ -1089,29 +1197,29 @@ else:
                     st.session_state[scored_key] = True
                     st.rerun()
 
-            # ── Interest results (After all the scoring) 
+            # ── Interest results (shown after scoring) ────────────────────
             if already_scored and st.session_state[int_key]:
-                my_interest_data = st.session_state[int_key]
+                interest_data = st.session_state[int_key]
                 st.markdown("---")
                 st.markdown("#### 💡 Interest Score Breakdown")
                 i1, i2, i3, i4, i5 = st.columns(5)
-                i1.metric("Total", f"{my_interest_data['interest_score']} / 100")
-                i2.metric("Openness",       f"{my_interest_data['openness']} / 25")
-                i3.metric("Role Alignment", f"{my_interest_data['role_alignment']} / 25")
-                i4.metric("Location Fit",   f"{my_interest_data['location_fit']} / 25")
-                i5.metric("Availability",   f"{my_interest_data['availability']} / 25")
-                st.markdown(f"**AI Assessment:** {my_interest_data['summary']}")
-                if my_interest_data["key_quote"]:
-                    st.info(f'💬 *"{my_interest_data["key_quote"]}"*')
+                i1.metric("Total", f"{interest_data['interest_score']} / 100")
+                i2.metric("Openness",       f"{interest_data['openness']} / 25")
+                i3.metric("Role Alignment", f"{interest_data['role_alignment']} / 25")
+                i4.metric("Location Fit",   f"{interest_data['location_fit']} / 25")
+                i5.metric("Availability",   f"{interest_data['availability']} / 25")
+                st.markdown(f"**AI Assessment:** {interest_data['summary']}")
+                if interest_data["key_quote"]:
+                    st.info(f'💬 *"{interest_data["key_quote"]}"*')
 
                 final = round(
                     (match_data["match_score"] * match_weight) +
-                    (my_interest_data["interest_score"] * interest_weight), 2
+                    (interest_data["interest_score"] * interest_weight), 2
                 )
                 st.success(
                     f"**Combined Final Score: {final} / 100** "
                     f"(Match {match_data['match_score']} × {match_weight} + "
-                    f"Interest {my_interest_data['interest_score']} × {interest_weight})"
+                    f"Interest {interest_data['interest_score']} × {interest_weight})"
                 )
 
     # ────────────────────────────────────────────────────────────────────────
@@ -1120,13 +1228,13 @@ else:
     st.markdown("---")
 
     # Count how many are done
-    my_done_chats = sum(
+    chats_done = sum(
         1 for row, _ in top_candidates
         if st.session_state.get(get_scored_key(row["name"]), False)
     )
 
-    if my_done_chats < len(top_candidates):
-        remaining = len(top_candidates) - my_done_chats
+    if chats_done < len(top_candidates):
+        remaining = len(top_candidates) - chats_done
         st.info(
             f"💬 Complete outreach with **{remaining} more candidate(s)** to unlock the final ranked shortlist."
         )
@@ -1135,27 +1243,27 @@ else:
         ranked = []
         for cand_row, match_data in top_candidates:
             name          = cand_row["name"]
-            my_interest_data = st.session_state[get_interest_key(name)]
+            interest_data = st.session_state[get_interest_key(name)]
             final         = round(
                 (match_data["match_score"] * match_weight) +
-                (my_interest_data["interest_score"] * interest_weight), 2
+                (interest_data["interest_score"] * interest_weight), 2
             )
             ranked.append({
                 "name": name, "current_role": cand_row["current_role"],
                 "skills": cand_row["skills"], "experience": cand_row["experience"],
                 "location": cand_row["location"],
                 "match_score": match_data["match_score"],
-                "interest_score": my_interest_data["interest_score"],
+                "interest_score": interest_data["interest_score"],
                 "final_score": final,
                 "req_pts": match_data["req_pts"], "pref_pts": match_data["pref_pts"],
                 "exp_pts": match_data["exp_pts"], "role_pts": match_data["role_pts"],
                 "loc_pts": match_data["loc_pts"],
-                "openness": my_interest_data["openness"],
-                "role_alignment": my_interest_data["role_alignment"],
-                "location_fit": my_interest_data["location_fit"],
-                "availability": my_interest_data["availability"],
-                "interest_summary": my_interest_data["summary"],
-                "key_quote": my_interest_data["key_quote"],
+                "openness": interest_data["openness"],
+                "role_alignment": interest_data["role_alignment"],
+                "location_fit": interest_data["location_fit"],
+                "availability": interest_data["availability"],
+                "interest_summary": interest_data["summary"],
+                "key_quote": interest_data["key_quote"],
             })
 
         ranked.sort(key=lambda x: x["final_score"], reverse=True)
