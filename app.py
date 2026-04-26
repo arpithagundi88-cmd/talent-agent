@@ -27,14 +27,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Page configuration
-# ─────────────────────────────────────────────────────────────────────────────
+# page configuration
 st.set_page_config(page_title="Talent Scout AI", layout="wide", page_icon="🎯")
 
-# ─────────────────────────────────────────────────────────────────────────────
-# CSS — chat bubbles + live chat UI
-# ─────────────────────────────────────────────────────────────────────────────
+#CSS part of the code for chat bubbles etc..
 st.markdown("""
 <style>
 /* ── Chat bubbles ─────────────────────────────────────────────────────────── */
@@ -127,7 +123,7 @@ st.markdown("""
 # ─────────────────────────────────────────────────────────────────────────────
 # NVIDIA API — Key pool + rotation + retry
 # ─────────────────────────────────────────────────────────────────────────────
-_ALL_KEYS = [
+ALL_NVIDIA_KEYS = [
     k for k in [
         os.getenv("NVIDIA_API_KEY_1"),
         os.getenv("NVIDIA_API_KEY_2"),
@@ -137,8 +133,8 @@ _ALL_KEYS = [
 ]
 
 _legacy = os.getenv("NVIDIA_API_KEY")
-if _legacy and _legacy.strip() and _legacy not in _ALL_KEYS:
-    _ALL_KEYS.append(_legacy)
+if _legacy and _legacy.strip() and _legacy not in ALL_NVIDIA_KEYS:
+    ALL_NVIDIA_KEYS.append(_legacy)
 
 _key_state = {"index": 0}
 # I have used 3 API keys for safety purpose , since only 40rpm is supported by single NVIDIA key.
@@ -148,18 +144,19 @@ MAX_RETRIES = 3
 
 
 def _current_key() -> str:
-    return _ALL_KEYS[_key_state["index"]]
+    return ALL_NVIDIA_KEYS[_key_state["index"]]
 
 
-def _rotate_key(reason: str) -> bool:
+def 
+(reason: str) -> bool:
     next_idx = _key_state["index"] + 1
-    if next_idx < len(_ALL_KEYS):
+    if next_idx < len(ALL_NVIDIA_KEYS):
         _key_state["index"] = next_idx
         st.toast(f"🔑 Rotating to key {next_idx + 1} ({reason})")
         return True
     else:
         _key_state["index"] = 0
-        st.toast(f"⚠️ All {len(_ALL_KEYS)} keys tried ({reason})")
+        st.toast(f"⚠️ All {len(ALL_NVIDIA_KEYS)} keys tried ({reason})")
         return False
 
 
@@ -173,7 +170,7 @@ def _wait_for_rate_limit():
 
 
 def call_nvidia(prompt: str, max_tokens: int = 500) -> str:
-    if not _ALL_KEYS:
+    if not ALL_NVIDIA_KEYS:
         raise RuntimeError(
             "No NVIDIA API keys found.\n"
             "Add to your .env file:\n"
@@ -192,7 +189,7 @@ def call_nvidia(prompt: str, max_tokens: int = 500) -> str:
     backoff = 10
 
     for attempt in range(MAX_RETRIES):
-        for _ in range(len(_ALL_KEYS)):
+        for _ in range(len(ALL_NVIDIA_KEYS)):
             _wait_for_rate_limit()
             headers = {
                 "Authorization": f"Bearer {_current_key()}",
@@ -214,7 +211,7 @@ def call_nvidia(prompt: str, max_tokens: int = 500) -> str:
                 if r.status_code == 429:
                     retry_after = int(r.headers.get("Retry-After", 0))
                     st.toast(f"⏳ Key {key_num} hit 40rpm limit — rotating...")
-                    rotated = _rotate_key("429")
+                    rotated = lets_rotate_keys("429")
                     if not rotated:
                         wait_time = max(retry_after, backoff)
                         st.toast(f"😴 All keys rate limited. Waiting {wait_time}s...")
@@ -227,7 +224,7 @@ def call_nvidia(prompt: str, max_tokens: int = 500) -> str:
 
                 if r.status_code == 401:
                     st.toast(f"🔑 Key {key_num} auth failed — rotating...")
-                    _rotate_key("401 invalid key")
+                    lets_rotate_keys("401 invalid key")
                     continue
 
                 if r.status_code >= 500:
@@ -239,7 +236,7 @@ def call_nvidia(prompt: str, max_tokens: int = 500) -> str:
 
             except requests.exceptions.Timeout:
                 st.toast(f"⏰ Key {key_num} timed out — rotating...")
-                _rotate_key("timeout")
+                lets_rotate_keys("timeout")
                 continue
 
             except requests.exceptions.ConnectionError:
@@ -797,18 +794,18 @@ with st.sidebar:
     st.divider()
 
     st.subheader("🔑 API Key Pool")
-    if not _ALL_KEYS:
+    if not ALL_NVIDIA_KEYS:
         st.error("No API keys found. Add NVIDIA_API_KEY_1 to your .env")
     else:
-        for i, key in enumerate(_ALL_KEYS):
+        for i, key in enumerate(ALL_NVIDIA_KEYS):
             label = f"Key {i+1}: ...{key[-6:]}"
             if i == _key_state["index"]:
                 st.success(f"🟢 {label} — active")
             else:
                 st.info(f"⚪ {label} — standby")
         st.caption(
-            f"{len(_ALL_KEYS)} key(s) · 40 rpm each · "
-            f"2s gap enforced · max {len(_ALL_KEYS) * 30} rpm combined"
+            f"{len(ALL_NVIDIA_KEYS)} key(s) · 40 rpm each · "
+            f"2s gap enforced · max {len(ALL_NVIDIA_KEYS) * 30} rpm combined"
         )
 
     st.divider()
@@ -847,7 +844,7 @@ if not st.session_state.scouting_done:
         if not jd.strip():
             st.warning("Please paste a Job Description first.")
             st.stop()
-        if not _ALL_KEYS:
+        if not ALL_NVIDIA_KEYS:
             st.error("No NVIDIA API keys found in .env file.")
             st.stop()
 
