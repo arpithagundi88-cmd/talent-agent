@@ -389,7 +389,7 @@ def calculate_match_score(parsed_jd: dict, row: pd.Series) -> dict:
     pref = parsed_jd["preferred_skills"]
     matched_pref, pref_pts = [], 0
     if pref:
-        matched_pref = [s for s in pref if s.lower() in candidate_skills]
+        matched_pref = [s for s in pref if s.lower() in candidate_set]
         pref_pts = round((len(matched_pref) / len(pref)) * weights["preferred_skills"], 2)
         score += pref_pts
 
