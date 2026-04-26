@@ -39,7 +39,7 @@ Talent Scout AI automates the full recruiter workflow — from parsing a job des
 
 | Factor | Weight | Method |
 |---|---|---|
-| Required Skills | 45 pts | Power-curve ratio `(matched/total)^0.75` — penalises partial matches |
+| Required Skills | 45 pts | Power-curve ratio `(matched/total)^0.75` —  partial matches scored properly |
 | Preferred Skills | 15 pts | Linear ratio |
 | Experience | 20 pts | 3-tier: Full (≥ req) = 20, Partial (req−1) = 14, Miss = 0 |
 | Role Alignment | 15 pts | Keyword overlap between JD role title and candidate's current role |
@@ -97,7 +97,7 @@ NVIDIA_API_KEY_3=nvapi-xxxxxxxxxxxxxxxxxxxx   # optional
 ```
 Get a free key at: https://build.nvidia.com
 
-> **Tip:** Adding 2–3 keys increases your effective rate limit from 40 rpm to 80–120 rpm combined.
+> **Tip:** Adding 2–3 keys increases our effective rate limit from 40 rpm to 80–120 rpm combined.
 
 ### 4. Run the app
 ```bash
