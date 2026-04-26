@@ -755,7 +755,8 @@ if "active_chat_candidate" not in st.session_state:
 # Sidebar
 # ─────────────────────────────────────────────────────────────────────────────
 with st.sidebar:
-    st.header("🎯 Talent Scout AI")
+    st.header("🎯 Talent Scout AI ")
+    st.sidebar.caption("Build: Hackathon Final v2- Arpitha")
 
     st.subheader("➕ Add Candidate")
     with st.form("add_candidate_form", clear_on_submit=True):
