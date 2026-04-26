@@ -321,7 +321,7 @@ def delete_candidate(candidate_id: int):
 # STEP 1 — sample job description Parser
 # ─────────────────────────────────────────────────────────────────────────────
 def parse_jd(jd: str) -> dict:
-    prompt = f"""
+    my_prompt = f"""
 You are an expert recruiter assistant.
 Extract structured hiring information from the job description.
 Return ONLY valid JSON — no markdown, no explanation:
@@ -344,9 +344,9 @@ Job Description:
 {jd}
 """
     try:
-        text = call_nvidia(prompt, max_tokens=400)
-        text = text.replace("```json", "").replace("```", "").strip()
-        data = json.loads(text)
+        llmprocessesdprompt = call_nvidia(my_prompt, max_tokens=400)
+        llmprocessesdprompt = llmprocessesdprompt.replace("```json", "").replace("```", "").strip()
+        data = json.loads(llmprocessesdprompt)
         return {
             "role":             data.get("role", ""),
             "required_skills":  data.get("required_skills", []),
@@ -374,21 +374,22 @@ def calculate_match_score(parsed_jd: dict, row: pd.Series) -> dict:
         if x.strip()
     }
 
-    req = parsed_jd["required_skills"]
+    myrequiredskills = parsed_jd["required_skills"]
     matched_req, req_pts = [], 0
-    if req:
-        matched_req = [s for s in req if s.lower() in candidate_set]
-        ratio = len(matched_req) / len(req)
+    if myrequiredskills:
+        matched_req = [s for s in myrequiredskills if s.lower() in candidate_set]
+        ratio = len(matched_req) / len(myrequiredskills)
         req_pts = round((ratio ** 0.75) * weights["required_skills"], 2)
         score += req_pts
 
-    pref = parsed_jd["preferred_skills"]
+    mypreferedskills = parsed_jd["preferred_skills"]
     matched_pref, pref_pts = [], 0
-    if pref:
-        matched_pref = [s for s in pref if s.lower() in candidate_set]
-        pref_pts = round((len(matched_pref) / len(pref)) * weights["preferred_skills"], 2)
+    if mypreferedskills:
+        matched_pref = [s for s in mypreferedskills if s.lower() in candidate_set]
+        pref_pts = round((len(matched_pref) / len(mypreferedskills)) * weights["preferred_skills"], 2)
         score += pref_pts
 
+    #If candidate is 1 year short, still gets 70% points.
     req_exp = parsed_jd["experience"]
     cand_exp = int(row.get("experience", 0))
     exp_tier, exp_pts = "miss", 0
@@ -399,8 +400,9 @@ def calculate_match_score(parsed_jd: dict, row: pd.Series) -> dict:
             exp_pts = round(weights["experience"] * 0.7, 2); exp_tier = "partial"
     score += exp_pts
 
-    STOP = {"and", "or", "of", "the", "a", "an", "in", "at", "for", "to"}
-    target_kws = [w for w in parsed_jd["role"].lower().split() if w not in STOP]
+    #These words are ignored because they are too generic and they dont add any value to job title.
+    STOPWORDSIGNORED = {"and", "or", "of", "the", "a", "an", "in", "at", "for", "to"}
+    target_kws = [w for w in parsed_jd["role"].lower().split() if w not in STOPWORDSIGNORED]
     cand_role = row.get("current_role", "").lower()
     role_overlap, role_pts = 0.0, 0
     if target_kws:
@@ -431,10 +433,9 @@ def calculate_match_score(parsed_jd: dict, row: pd.Series) -> dict:
     }
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+
 # LIVE CHAT — Recruiter message suggestions (2 per turn, context-aware)
-# I m using just two suggestions, just to limit API credit usage!
-# ─────────────────────────────────────────────────────────────────────────────
+# I m using just two suggestions, just to limit API credit usage! (40 rpm)
 def generate_recruiter_suggestions(
     parsed_jd: dict,
     candidate_row: pd.Series,
@@ -518,9 +519,7 @@ Return ONLY valid JSON — no markdown, no explanation:
         return fallbacks.get(turn_number, fallbacks[2])
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# LIVE CHAT — Candidate reply generation
-# ─────────────────────────────────────────────────────────────────────────────
+# live chat- candidate reply generation
 def generate_candidate_reply_live(
     parsed_jd: dict,
     candidate_row: pd.Series,
@@ -578,9 +577,8 @@ Reply rules:
     return call_nvidia(prompt, max_tokens=200)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# STEP 4 — Interest Score
-# ─────────────────────────────────────────────────────────────────────────────
+
+# STEP 4 — Interest Score calclation logic
 def score_interest(parsed_jd: dict, row: pd.Series, conversation: list) -> dict:
     full_chat = ""
     for i, turn in enumerate(conversation, 1):
@@ -726,14 +724,10 @@ def get_interest_key(candidate_name: str) -> str:
 MAX_RECRUITER_TURNS = 3
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Init
-# ─────────────────────────────────────────────────────────────────────────────
+#initialise database
 init_db()
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Session state initialisation
-# ─────────────────────────────────────────────────────────────────────────────
+#session state initialisation
 if "parsed_jd" not in st.session_state:
     st.session_state.parsed_jd = None
 if "all_match_results" not in st.session_state:
@@ -747,9 +741,7 @@ if "scouting_done" not in st.session_state:
 if "active_chat_candidate" not in st.session_state:
     st.session_state.active_chat_candidate = None
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Sidebar
-# ─────────────────────────────────────────────────────────────────────────────
+# my sidebars
 with st.sidebar:
     st.header("🎯 Talent Scout AI ")
     st.sidebar.caption("Build: Hackathon Final v2- Arpitha")
@@ -822,15 +814,12 @@ with st.sidebar:
             st.rerun()
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Main UI
-# ─────────────────────────────────────────────────────────────────────────────
+# main user interface
 st.title("🎯 Talent Scout AI")
 st.subheader("AI-Powered Talent Scouting & Engagement Agent")
 
-# ─────────────────────────────────────────────────────────────────────────────
+
 # PHASE 1 — JD Input & Scouting (only shown before scouting)
-# ─────────────────────────────────────────────────────────────────────────────
 if not st.session_state.scouting_done:
     jd = st.text_area(
         "📋 Paste Job Description Here", height=260,
@@ -871,9 +860,8 @@ if not st.session_state.scouting_done:
         st.session_state.scouting_done = True
         st.rerun()
 
-# ─────────────────────────────────────────────────────────────────────────────
+
 # PHASE 2 — Live Chat & Results (after scouting)
-# ─────────────────────────────────────────────────────────────────────────────
 else:
     parsed_jd        = st.session_state.parsed_jd
     all_match_results = st.session_state.all_match_results
@@ -893,7 +881,7 @@ else:
             st.markdown("**Preferred Skills**")
             for s in parsed_jd["preferred_skills"]: st.markdown(f"- `{s}`")
 
-    # ── Full pool scores ──────────────────────────────────────────────────────
+    # Full pool scores
     with st.expander(f"📊 Full Pool — Match Scores (all {len(all_match_results)} candidates)", expanded=False):
         preview_rows = []
         for rank, (row, md) in enumerate(all_match_results, 1):
@@ -917,9 +905,8 @@ else:
     top_names = [row["name"] for row, _ in top_candidates]
     st.success(f"🏅 Top 3 candidates selected for live outreach: **{', '.join(top_names)}**")
 
-    # ────────────────────────────────────────────────────────────────────────
-    # LIVE CHAT SECTION
-    # ────────────────────────────────────────────────────────────────────────
+    
+    # live chatting section
     st.markdown("---")
     st.subheader("💬 Live Recruiter Outreach")
     st.markdown(
@@ -953,7 +940,7 @@ else:
         if not chat_complete:
             all_chats_complete = False
 
-        # ── Candidate card header ─────────────────────────────────────────
+        # Candidate card header
         badge = score_badge(match_data["match_score"])
         tier_icon = {"full": "✅", "partial": "🟡", "miss": "❌"}.get(match_data["exp_tier"], "")
 
@@ -977,7 +964,7 @@ else:
 
         with st.expander(expander_label, expanded=(not chat_complete)):
 
-            # ── Match breakdown (compact) ─────────────────────────────────
+            # match breakdown
             with st.container():
                 m1, m2, m3, m4, m5 = st.columns(5)
                 m1.metric("Req Skills", f"{match_data['req_pts']:.0f}/45")
@@ -999,11 +986,11 @@ else:
 
             st.markdown("---")
 
-            # ── Chat history ──────────────────────────────────────────────
+            # my chat history code ( dont delete)
             if conversation:
                 render_chat_bubbles(conversation, name)
 
-            # ── Live input (only if turns remain and not yet scored) ──────
+            # live inout ( do this only when chat input is not done yet - note down dele later if possible)
             if not already_scored:
                 if turns_left > 0:
                     # Turn counter badge
@@ -1019,7 +1006,7 @@ else:
                         unsafe_allow_html=True
                     )
 
-                    # ── AI Suggestions ────────────────────────────────────
+                    # AI suggestions code ( not mandatory i guess)
                     sugg_key    = get_suggestion_key(name, turns_used + 1)
                     prefill_key = f"prefill_{name}_{turns_used}"
 
@@ -1135,14 +1122,14 @@ else:
                             st.rerun()
 
                 else:
-                    # Turns exhausted but score not yet triggered (edge case guard)
+                    # Turns exhausted but score not yet triggered (this is just an edge case )
                     with st.spinner(f"📊 Analysing {name}'s interest level..."):
                         interest_data = score_interest(parsed_jd, cand_row, conversation)
                     st.session_state[int_key]    = interest_data
                     st.session_state[scored_key] = True
                     st.rerun()
 
-            # ── Interest results (shown after scoring) ────────────────────
+            # interest scores final result shown after complete scoring
             if already_scored and st.session_state[int_key]:
                 interest_data = st.session_state[int_key]
                 st.markdown("---")
@@ -1167,9 +1154,8 @@ else:
                     f"Interest {interest_data['interest_score']} × {interest_weight})"
                 )
 
-    # ────────────────────────────────────────────────────────────────────────
-    # FINAL RANKED SHORTLIST (shown after all 3 chats complete)
-    # ────────────────────────────────────────────────────────────────────────
+   
+    # FINAL RANKED SHORTLIST (shown after all 3 chats complete)   
     st.markdown("---")
 
     # Count how many are done
