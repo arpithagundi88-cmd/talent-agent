@@ -147,7 +147,7 @@ def _current_key() -> str:
     return ALL_NVIDIA_KEYS[_key_state["index"]]
 
 
-def rotate_key(reason: str) -> bool:
+def lets_rotate_keys(reason: str) -> bool:
     next_idx = _key_state["index"] + 1
     if next_idx < len(ALL_NVIDIA_KEYS):
         _key_state["index"] = next_idx
